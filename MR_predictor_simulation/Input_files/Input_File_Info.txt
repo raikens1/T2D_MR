@@ -1,0 +1,38 @@
+///////////////////////
+Input File Information
+///////////////////////
+Rachael Aikens and Ben Voight
+Questions and Comments to Ben Voight at bvoight@upenn.edu
+----------------------
+
+This file contains details on the MR_predictor input files used to generate the simulations which appear in this report. MR_predictor requires 6 input files to run, shown below.  For more information on the MR_predictor input types, see http://coruscant.itmat.upenn.edu/mr_predictor/example-input-files/
+
+----------------------
+
+infosheet: Contains rsids, effect and reference allele, and effect allele frequency for SNPs to be simulated
+
+	infosheet - rsids, alleles, and frequencies for 13 SNPs exclusively associated with SBP from the conservative instrument
+
+phenophile: Contains types and prevalences of traits to be simulated.  The T2D prevalences in the files below are adjusted so that the actual T2D prevalence in output simulations is approximately 9.8%, the rate measured by Cowie et al, 2006.
+	
+	phenofileA - T2D rate appropriate for simulations in which both BMI and SBP affect T2D risk
+	phenofileB - T2D rate appropriate for simulations under the null model where BMI increases T2D risk, but SBP does not
+
+iifile: contains information on how intermediate traits interact with each other
+
+	iifile - BMI/SBP interaction drawn from higher estimate from Dudina et al 2011
+
+idfile: Contains information on how intermediate traits interact with outcome (in SD units).  BMI/T2D effect estimate in both files is drawn from Sheikh et al, 2014
+
+	idfileA - SBP increases T2D by approximately 2% for each mmHg (in units of SD for SBP: 17.89mmHg in accordance with results from Ehret et al, 2010)
+	idfileB - Null model in which SBP does not increase T2D risk.
+
+scorefile: Contains genetic associations with intermediate traits
+
+    scorefile - SBP associations between each of 13 SNP in conservative instrument (SD units)
+
+ldinfosheet: Contains ld info for SNPs to be simulated
+
+	ldinfosheet - Since all SNPs in the conservative instrument have been filtered for ld, this file is purposefully blank.
+
+-----------------------

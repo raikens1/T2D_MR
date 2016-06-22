@@ -1,0 +1,152 @@
+---
+title: "Pleiotropic Bias Simulations for Egger Regression"
+author: "Rachael Aikens"
+date: "June 20, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Summary
+
+This RMarkdown gives overview and code for simulating gene-outcome and gene-exposure associations for Egger Regression analysis based on preset parameters for bias and exposure-outcome effect. The details of the simulation model are explained in the Supplimentary Information from this report.
+
+## The ER.sim Function
+
+**Summary:** Generates simulated gene-exposure data for a set of SNPs with a given level of bias and noise.  Runs Egger regression on these simulations and reports the results.
+
+**Inputs:**
+
+* "bias" a vector containing the upper and lower bounds for a uniformly distributed pleiotropic bias to be added to the data
+* "BetaXG" a vector of Gene-exposure associations
+* "sd" a vector of desired standard deviations for noise to be added to the gene-outcome associations
+* "alpha" the true effect of exposure on outcome (preset 0.02)
+* "n" the number of simulations to run (preset 1000)
+
+**Outputs:** a dataframe with n rows and 4 columns.  Each row gives the effect and bias estimate with two booleans, "Beta.Ha," and "Bias.Ha".  The boolean is TRUE if the simulation detected nonzero beta or bias, respectively.
+
+```{r}
+ER.sim <- function(bias, BetaXG, sd, alpha, n = 10000) {
+  
+  #initialize data frame to hold results
+  result <- data.frame(matrix(ncol=4,nrow=n))
+  colnames(result) <- c("Beta", "Beta.Ha", "Bias", "Bias.Ha")
+  
+  #pre-processing ensuring all gene-exposure estimates are postitive
+  BXG <- abs(BetaXG)
+  
+  for (i in 1:n){
+    #Generate SNP associations
+    n.SNPs <- length(sd)
+    BYG <- rnorm(n.SNPs, mean=alpha*BXG, sd=sd) + runif(n.SNPs, min = bias[1], max = bias[2]) #add uniformly distributed bias based on set limits
+
+    #Egger regression
+    ERfit <- summary(lm(BYG~BXG,weights=1/sd^2))
+    ER.bias <- ERfit$coef[1,1]
+    ER.beta <- ERfit$coef[2,1]
+    
+    #asymptotic correction for SE
+    SE.bias <- ERfit$coef[1,2]/ERfit$sigma
+    SE.beta <- ERfit$coef[2,2]/ERfit$sigma
+    
+    #t-test for singificance
+    DF <- length(BYG)-2
+    ER.bias.p <- 2*(1-pt(abs(ER.bias/SE.bias),DF))
+    ER.beta.p <- 2*(1-pt(abs(ER.beta/SE.beta),DF))
+    
+    #store results
+    result$Beta[i] <- ER.beta
+    result$Beta.Ha[i] <- ER.beta.p < 0.05
+    result$Bias[i] <- ER.bias
+    result$Bias.Ha[i] <- ER.bias.p < 0.05
+  }
+  
+  return(result)
+}
+```
+## Sample analysis with ER.sim
+
+Below, we will demonstrate a sample analysis using different levels and directions of bias.  For our analysis, we used the SBP associations from our conservative instrument of 13 SNPsas our gene-exposure associations, and the standard error in our T2D associations estimates as our standard deviation for adding noise to the data.
+
+```{r, eval=TRUE}
+#vector of gene-exposure associations (SBP)
+BetaXG <- c(0.357, 0.329, 0.732, 0.903, 0.620, 0.485, 0.355, 0.318, 0.951, 0.553, 0.520, 0.327, 0.471)
+
+#Vector of standard errors in gene-outcome associations
+se.BetaYG <- c(0.0128, 0.0103, 0.0115, 0.0142, 0.0125, 0.0126, 0.0164, 0.0169, 0.0157, 0.0117, 0.0155, 0.0113, 0.0106)
+```
+We analyzed Egger Regression power and accuracy under four different models:
+
+* No bias
+* Positive bias
+* Negative bias
+* Nondirectional bias
+
+For more information on these models, see the supplimentary information from this report.
+
+```{r}
+trials <- c("No bias", "Positive bias", "Negative bias", "Nondirectional bias")
+
+#Run simulations with different bias ranges
+no.bias <- ER.sim(bias = c(0,0), BetaXG = BetaXG, sd = se.BetaYG, alpha = 0.02)
+pos.bias <- ER.sim(bias = c(0, 0.04), BetaXG = BetaXG, sd = se.BetaYG, alpha = 0.02)
+neg.bias <- ER.sim(bias = c(-0.04, 0), BetaXG = BetaXG, sd = se.BetaYG, alpha = 0.02)
+nondir.bias <- ER.sim(bias = c(-0.04, 0.04), BetaXG = BetaXG, sd = se.BetaYG, alpha = 0.02)
+
+#Estimating power
+result.power <- data.frame(matrix(ncol=4,nrow=2))
+rownames(result.power) <- c("Beta estimate", "Bias Estimate")
+
+result.power$X1 <- c(mean(no.bias$Beta.Ha), mean(no.bias$Bias.Ha))
+result.power$X2 <- c(mean(pos.bias$Beta.Ha), mean(pos.bias$Bias.Ha))
+result.power$X3 <- c(mean(neg.bias$Beta.Ha), mean(neg.bias$Bias.Ha))
+result.power$X4 <- c(mean(nondir.bias$Beta.Ha), mean(nondir.bias$Bias.Ha))
+colnames(result.power) <- trials
+
+#show this result
+result.power
+
+#Results of Beta estimates
+result.beta <- data.frame(matrix(ncol=4,nrow=10000))
+result.beta$X1 <- no.bias$Beta
+result.beta$X2 <- pos.bias$Beta
+result.beta$X3 <- neg.bias$Beta
+result.beta$X4 <- nondir.bias$Beta
+colnames(result.beta) <- trials
+
+#Results of Bias estimates
+result.bias <- data.frame(matrix(ncol=4,nrow=10000))
+result.bias$X1 <- no.bias$Bias
+result.bias$X2 <- pos.bias$Bias
+result.bias$X3 <- neg.bias$Bias
+result.bias$X4 <- nondir.bias$Bias
+colnames(result.bias) <- trials
+```
+
+## Visualizing Results
+
+The following R code generates boxplots in ggplot2 to visualize the simulation results
+
+```{r}
+library(ggplot2)
+library(plyr)
+require(reshape2)
+
+myboxplot <- function(ylabel, alpha, result){
+  data <- melt(result)
+
+  #Make the plot
+  box.p <- ggplot(data, aes(variable,value)) + 
+    geom_boxplot(notch=TRUE, fill = "light blue", colour = "dark blue", lwd = 0.5) +
+    labs(y = ylabel) + #y axis label
+    geom_hline(yintercept = alpha , color = "red") + #horizontal line at true effect size
+    theme(axis.text.x = element_text(size = rel(1.4)), axis.title.x = element_blank(), #adjust text sizes
+          axis.title.y = element_text(size = rel(1.5)), axis.text.y = element_text(size = rel(1.4)))
+  return(box.p)
+}
+
+colnames(result.beta) <- c("No bias", "Positive \nbias", "Negative \nbias", "Nondirectional \nbias")
+myboxplot(ylabel = "Estimated effect of SBP on T2D\n", alpha = 0.02, result = result.beta)
+
+```
