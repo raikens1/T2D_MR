@@ -22,7 +22,7 @@ This RMarkdown gives overview and code for simulating gene-outcome and gene-expo
 * "BetaXG" a vector of Gene-exposure associations
 * "sd" a vector of desired standard deviations for noise to be added to the gene-outcome associations
 * "alpha" the true effect of exposure on outcome (preset 0.02)
-* "n" the number of simulations to run (preset 1000)
+* "n" the number of simulations to run (preset 10000)
 
 **Outputs:** a dataframe with n rows and 4 columns.  Each row gives the effect and bias estimate with two booleans, "Beta.Ha," and "Bias.Ha".  The boolean is TRUE if the simulation detected nonzero beta or bias, respectively.
 
